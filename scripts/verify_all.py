@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-"""horary-calc 全链路验证：四库索引 + 排盘 + 报告生成 + 宫位制确认。"""
+﻿# -*- coding: utf-8 -*-
+"""dishonors-astrolabe 全链路验证：四库索引 + 排盘 + 报告生成 + 宫位制确认。"""
 import os, sys, subprocess, re
 
 SK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

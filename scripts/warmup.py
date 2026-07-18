@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-"""horary-calc 预热脚本：提前加载星历 + 七库索引到系统文件缓存。
+﻿# -*- coding: utf-8 -*-
+"""dishonors-astrolabe 预热脚本：提前加载星历 + 七库索引到系统文件缓存。
 
 QClaw 每次重启后的第一次卜卦判读会慢（冷启动 I/O），本脚本提前把
 pyswisseph 星历数据和七库索引文件都「摸」一遍，让操作系统把它们
@@ -97,7 +97,7 @@ def main():
     ok_count = sum(1 for _, _, ok in results if ok)
     fail_count = len(results) - ok_count
 
-    print(f"=== horary-calc 预热{'（轻量）' if light else ''}完成 ===")
+    print(f"=== dishonors-astrolabe 预热{'（轻量）' if light else ''}完成 ===")
     print(f"耗时: {elapsed:.1f}秒  |  缓存文件: {ok_count}/{len(results)}")
     if fail_count:
         print(f"⚠ 失败: {fail_count}")

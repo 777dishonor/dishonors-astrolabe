@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 卜卦判读报告生成器：套用 TEMPLATE.md，产出标准化 md。
 用法:
@@ -32,7 +32,7 @@ def load_template():
 | **问卜人问题** | *{question}* |
 | **宫位制** | Regiomontanus |
 | **资料库** | 七库（Frawley 6.0 + 李利 CA1/CA2/CA3 + Horary Examples + 灵体专题 + 莫林本命） |
-| **排盘引擎** | horary-calc / pyswisseph（Swiss Ephemeris） |
+| **排盘引擎** | dishonors-astrolabe / pyswisseph（Swiss Ephemeris） |
 
 ---
 

@@ -1,7 +1,7 @@
-# 索引：基督占星第三册(Christian Astrology 3)选译.md
+﻿# 索引：基督占星第三册(Christian Astrology 3)选译.md
 
 - 底本文件：基督占星第三册(Christian Astrology 3)选译.md
-- 底本路径：C:\Users\WH\.qclaw\skills\horary-calc\references\基督占星第三册(Christian Astrology 3)选译.md
+- 底本路径：C:\Users\WH\.qclaw\skills\dishonors-astrolabe\references\基督占星第三册(Christian Astrology 3)选译.md
 - 总行数：2197
 - 标题数：54
 - 段落总数：1045

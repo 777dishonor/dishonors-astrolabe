@@ -1,5 +1,5 @@
----
-name: horary-calc
+﻿---
+name: dishonors-astrolabe
 description: 古典占星排盘 + 判读（卜卦 & 本命）。当用户给出「一个卜卦问题 + 时间 + 地点」或「出生信息 + 本命分析/推运需求」时，调用本 skill 用 Swiss Ephemeris 算出真实星盘，并严格依据资料库章节-段落索引逐条引用判读。资料库含七库须并检。卜卦用 Regiomontanus 宫位制，本命用 Placidus。何时用：卜卦占星（丢物、感情、求职、买卖、疾病、盗窃等）、本命占星（性格、事业、婚姻、财运、健康等本命盘分析）、推运（法达大限、小限、太阳返照等）——用户提供了所需信息。不用：现代/心理占星话术（那用 cyber-astro-modern-public）、未提供时间地点的空泛占卜。
 ---
 
@@ -200,7 +200,7 @@ TEMPLATE.md 是单一真相源——以下仅为示意，实际产出以 TEMPLAT
 | **问卜人问题** | *[问题原文]* |
 | **宫位制** | Regiomontanus |
 | **资料库** | 七库 |
-| **排盘引擎** | horary-calc / pyswisseph |
+| **排盘引擎** | dishonors-astrolabe / pyswisseph |
 
 ---
 
@@ -245,7 +245,7 @@ python3 gen_report.py --title "丢猫" --time "2024-01-01 12:00" --tz 8 --place 
     - `references/莫林本命占星方法.md` + `_index_morin.md`（Morin 第21卷）
 
 ## 外部调用方式（脱离本对话）
-- 本 skill 放入任意 OpenClaw 的 skills 目录（如 `~/.qclaw/skills/horary-calc/` 或对应 profiles 的 skills 目录）后，在任意 agent / 会话中说「用 horary-calc 排盘/解这道卜卦」「用 horary-calc 排本命盘」即可被加载调用。
+- 本 skill 放入任意 OpenClaw 的 skills 目录（如 `~/.qclaw/skills/dishonors-astrolabe/` 或对应 profiles 的 skills 目录）后，在任意 agent / 会话中说「用 dishonors-astrolabe 排盘/解这道卜卦」「用 dishonors-astrolabe 排本命盘」即可被加载调用。
 - 也可在 shell 中直接跑脚本（不依赖对话）：先 `cast_chart.py` 出盘（卜卦默认 Regiomontanus，本命加 `--mode natal`），再 `gen_report.py` 出报告。
 - 依赖：`pip install pyswisseph==2.10.3.2`（Windows 用预编译 wheel，无需 VC++）。
 

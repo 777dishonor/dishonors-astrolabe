@@ -1,7 +1,7 @@
-# 索引：灵体攻击案例专题.md
+﻿# 索引：灵体攻击案例专题.md
 
 - 底本文件：灵体攻击案例专题.md
-- 底本路径：C:\Users\WH\.qclaw\skills\horary-calc\references\灵体攻击案例专题.md
+- 底本路径：C:\Users\WH\.qclaw\skills\dishonors-astrolabe\references\灵体攻击案例专题.md
 - 总行数：31
 - 标题数：2
 - 段落总数：14

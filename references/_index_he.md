@@ -1,7 +1,7 @@
-# 索引：Horary Examples翻译.md
+﻿# 索引：Horary Examples翻译.md
 
 - 底本文件：Horary Examples翻译.md
-- 底本路径：C:\Users\WH\.qclaw\skills\horary-calc\references\Horary Examples翻译.md
+- 底本路径：C:\Users\WH\.qclaw\skills\dishonors-astrolabe\references\Horary Examples翻译.md
 - 总行数：3051
 - 标题数：74
 - 段落总数：1420

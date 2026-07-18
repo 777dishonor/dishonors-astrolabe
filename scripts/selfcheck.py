@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-"""horary-calc 自包含性自检：确认底本/索引/依赖均就位且可用。"""
+﻿# -*- coding: utf-8 -*-
+"""dishonors-astrolabe 自包含性自检：确认底本/索引/依赖均就位且可用。"""
 import os, sys
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

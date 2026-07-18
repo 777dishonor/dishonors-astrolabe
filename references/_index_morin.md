@@ -1,7 +1,7 @@
-# 索引：莫林本命占星方法.md
+﻿# 索引：莫林本命占星方法.md
 
 - 底本文件：莫林本命占星方法.md
-- 底本路径：C:\Users\WH\.qclaw\skills\horary-calc\references\莫林本命占星方法.md
+- 底本路径：C:\Users\WH\.qclaw\skills\dishonors-astrolabe\references\莫林本命占星方法.md
 - 总行数：901
 - 标题数：50
 - 段落总数：401

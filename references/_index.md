@@ -1,7 +1,7 @@
-# 卜卦底本索引
+﻿# 卜卦底本索引
 
 - 底本文件：The Horary Textbook乾坤 6.0版.md
-- 底本路径：C:\Users\WH\.qclaw\skills\horary-calc\references\The Horary Textbook乾坤 6.0版.md
+- 底本路径：C:\Users\WH\.qclaw\skills\dishonors-astrolabe\references\The Horary Textbook乾坤 6.0版.md
 - 总行数：6761
 - 标题数：476
 - 段落总数：2839

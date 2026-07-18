@@ -1,4 +1,4 @@
-# 🔮 卜卦判读 · {title}
+﻿# 🔮 卜卦判读 · {title}
 
 > ⚠️ 判读前已行祈祷（仿文艺复兴风格占星师祈祷文）。自检通过。
 
@@ -9,7 +9,7 @@
 | **问卜人问题** | *{question}* |
 | **宫位制** | Regiomontanus |
 | **资料库** | 七库（Frawley 6.0 + 李利 CA1/CA2/CA3 + Horary Examples + 灵体专题 + 莫林本命） |
-| **排盘引擎** | horary-calc / pyswisseph（Swiss Ephemeris） |
+| **排盘引擎** | dishonors-astrolabe / pyswisseph（Swiss Ephemeris） |
 
 ---
 

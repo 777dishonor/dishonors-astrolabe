@@ -1,4 +1,4 @@
-# horary-calc · 古典占星排盘与判读（卜卦 & 本命）
+﻿# dishonors-astrolabe · 古典占星排盘与判读（卜卦 & 本命）
 
 一个 OpenClaw skill：给定「时间 + 地点」，用 Swiss Ephemeris 算出真实星盘（卜卦用 Regiomontanus 宫位制，本命用 Placidus），并**严格依据七库资料**的章节-段落索引逐条引用判读，产出标准化 md 报告。
 
@@ -15,7 +15,7 @@
 
 ## 目录结构
 ```
-horary-calc/
+dishonors-astrolabe/
 ├── SKILL.md            # skill 触发条件、流程、引用铁律、交付铁律
 ├── TEMPLATE.md         # 报告模板
 ├── README.md           # 本文件
