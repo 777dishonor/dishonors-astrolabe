@@ -68,10 +68,9 @@ def _find_group_end(svg_text, start_pos):
 
 
 def _shrink_zodiac(svg_text):
-    """缩放 Zodiac 组内的所有星座符号 <use>——添加 width/height=15px。
-    svg2rlg 不支持 <use transform>，但支持 <use width/height>。
-    注意：Kerykeion 的 Zodiac 组有嵌套 <g> 结构，
-    用非贪婪 .*? 会提前碰到内层 </g>，需用 _find_group_end 精确定位边界。
+    """缩放 Zodiac 组内的所有星座符号 <use>。
+    svg2rlg 不支持 <use width/height>，改用在每个 <use> 外包裹
+    <g transform="translate(x,y) scale(0.4)"> 并重置 <use> 坐标为 0,0。
     """
     m = re.search(
         r"<g[^>]*kr:node\s*=\s*['\"]Zodiac['\"][^>]*>",
@@ -83,28 +82,20 @@ def _shrink_zodiac(svg_text):
     if end == -1:
         return svg_text
 
-    head = svg_text[start:end + 4]  # 含首尾标签
     body = svg_text[m.end():end]
 
-    def shrink_use(u):
+    def wrap_use(u):
         tag = u.group(0)
-        if re.search(r"width\s*=", tag, re.I):
-            tag = re.sub(
-                r"width\s*=\s*['\"]([\d.]+)['\"]",
-                lambda m2: "width='%.1f'" % (float(m2.group(1)) / 2), tag)
-            tag = re.sub(
-                r"height\s*=\s*['\"]([\d.]+)['\"]",
-                lambda m2: "height='%.1f'" % (float(m2.group(1)) / 2), tag)
-        else:
-            # 替换末尾的 '/>' 为 ' width="15" height="15" />'
-            if tag.rstrip().endswith('/>'):
-                tag = tag.rstrip()[:-2].rstrip() + " width='15' height='15' />"
-            else:
-                tag = tag + " width='15' height='15' />"
+        # 提取 x,y
+        xm = re.search(r"x\s*=\s*['\"]([^'\"]+)['\"]", tag)
+        ym = re.search(r"y\s*=\s*['\"]([^'\"]+)['\"]", tag)
+        hm = re.search(r"(xlink:)?href\s*=\s*['\"]([^'\"]+)['\"]", tag)
+        if xm and ym and hm:
+            x, y, href = xm.group(1), ym.group(1), hm.group(2)
+            return f"<g transform='translate({x},{y}) scale(0.4)'><use xlink:href='{href}' /></g>"
         return tag
 
-    new_body = re.sub(r"<use\b[^>]*?\s*/>", shrink_use, body)
-    # 重建完整 Zodiac 组（保留首尾标签）
+    new_body = re.sub(r"<use\b[^>]*?\s*/>", wrap_use, body)
     open_tag_end = svg_text.find('>', start) + 1
     return (svg_text[:open_tag_end]
             + new_body
@@ -124,8 +115,10 @@ def _localize_bottom_text(svg_text):
     """
     # 黄道/热带（繁体+简体+全角/半角冒号）
     svg_text = re.sub(r'[黄黃]道[\s]*[：:][\s]*[热熱][帶带]', 'Zodiac: Tropical', svg_text)
-    # 宫位划分制度
+    # 宫位划分制度（CN 模式的中文）
     svg_text = re.sub(r'宫位划分[\s]*[：:][\s]*[^<]+', 'Houses: Regiomontanus', svg_text)
+    # Domification（EN 模式输出）
+    svg_text = re.sub(r'Domification[\s]*[：:][\s]*[^<]+', 'Houses: Regiomontanus', svg_text)
     return svg_text
 
 
@@ -154,8 +147,12 @@ def svg_to_png(svg_text, png_path, dpi=330):
     from reportlab.graphics import renderPM
     _register_font()
 
-    # 1) 收集 <style> 块 CSS 变量
-    vmap = {}
+    # 1) 收集 <style> 块 CSS 变量 + 预置默认值
+    vmap = {
+        "--kerykeion-chart-color-fire-percentage": "#FF0000",
+        "--kerykeion-chart-color-earth-percentage": "#8B4513",
+        "--kerykeion-chart-color-water-percentage": "#0000FF",
+    }
     for sm in re.finditer(r"<style[^>]*>(.*?)</style>", svg_text, re.S):
         for nm, val in re.findall(r"(--[\w-]+)\s*:\s*([^;]+)", sm.group(1)):
             vmap[nm.strip()] = val.strip()
@@ -163,18 +160,22 @@ def svg_to_png(svg_text, png_path, dpi=330):
     vmap["--kerykeion-chart-color-house-number"] = "black"
 
     # 2) 替换 var(--name) 为具体值（未定义兜底 black），
-    #    注意 Kerykeion 生成的 var 括号内可能有空白
-    #    "var(         --kerykeion-chart-color-fire-percentage     )"
-    svg_text = re.sub(r"var\s*\(\s+([^)]+)\s+\)",
-                      lambda m: vmap.get(m.group(1).strip(), "black"), svg_text)
-    svg_text = re.sub(r"var\(([^)]+)\)",
-                      lambda m: vmap.get(m.group(1).strip(), "black"), svg_text)
+    #    注意 Kerykeion 生成的 var 括号内可能有空白甚至跨行
+    #    "var(\n        --kerykeion-chart-color-fire-percentage\n    )"
+    def _replace_var(m):
+        name = m.group(1).strip()
+        return vmap.get(name, "black")
+    svg_text = re.sub(r"var\s*\(([^)]+)\)", _replace_var, svg_text, flags=re.S)
 
     # 3) 宫数字去 fill-opacity（保持纯黑，而非半透明灰）
+    #    Kerykeion 把 kr:node='HouseNumber' 放在父 <g> 而非 <text> 上，
+    #    需要匹配完整块并清除内部 text 的 fill-opacity
+    def _strip_fill_opacity(m):
+        block = m.group(0)
+        return re.sub(r"(fill-opacity:\s*[\d.]+;?)", "", block)
     svg_text = re.sub(
-        r"(<text\b[^>]*kr:node='HouseNumber'[^>]*style=')([^']*)(')",
-        lambda m: m.group(1) + re.sub(r"fill-opacity:\s*[^;]+;?", "", m.group(2)) + m.group(3),
-        svg_text)
+        r"<g\b[^>]*kr:node='HouseNumber'[^>]*>.*?</g>",
+        _strip_fill_opacity, svg_text, flags=re.S)
 
     # 4) 星座符号缩小（仅 Zodiac 组内）
     svg_text = _shrink_zodiac(svg_text)
