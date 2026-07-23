@@ -13,7 +13,7 @@
   python plot_chart.py --time "1990-06-15 14:30" --lat 39.908 --lon 116.397 \
       --mode natal --out chart.png --name "Demo" --city "Beijing"
 """
-import sys, argparse, re, os, tempfile
+import sys, argparse, re, os, tempfile, math
 
 # 数字时区 → IANA 近似映射（中国场景为主，海外常见）
 TZ_MAP = {
@@ -104,39 +104,149 @@ def _shrink_zodiac(svg_text):
 
 
 def _localize_bottom_text(svg_text):
-    """将底部左下角的中文标签改为英文。
-    Kerykeion 的 lang=CN 下输出繁体中文，如：
-      黃道: 熱帶       →  Zodiac: Tropical
-      宫位划分: 雷焦蒙塔努斯 →  Houses: Regiomontanus
-      朔望月日: 8      →  (保留)
-      月相: 上弦月      →  (保留)
-      视角: 視地心      →  (保留)
-    注意：繁体字（黃/熱）与常见简体不匹配，需分别处理。
+    """左下角只保留宫位制英文原文，其余改中文。
+    Kerykeion 的 lang=EN 下默认输出英文，我们需要：
+      Zodiac: Tropical       → 黄道：回归
+      Houses: Regiomontanus  → 保留英文
+      Lunation Day: 8        → 月日：8
+      Lunar phase: First Quarter → 月相：上弦月
+      Perspective: Apparent Geocentric → 视角：视地心
     """
-    # 黄道/热带（繁体+简体+全角/半角冒号）
-    svg_text = re.sub(r'[黄黃]道[\s]*[：:][\s]*[热熱][帶带]', 'Zodiac: Tropical', svg_text)
-    # 宫位划分制度（CN 模式的中文）
+    # 黄道（保留中文冒号便于对齐）
+    svg_text = re.sub(r'[Zz]odiac[\s]*:[\s]*Tropical', '黄道：回归', svg_text)
+    # 宫位制必须保留英文 Regiomontanus
+    svg_text = re.sub(r'Domification[\s]*:[\s]*[^<]+', 'Houses: Regiomontanus', svg_text)
     svg_text = re.sub(r'宫位划分[\s]*[：:][\s]*[^<]+', 'Houses: Regiomontanus', svg_text)
-    # Domification（EN 模式输出）
-    svg_text = re.sub(r'Domification[\s]*[：:][\s]*[^<]+', 'Houses: Regiomontanus', svg_text)
+    # 月日/月相/视角
+    svg_text = re.sub(r'Lunation Day[\s]*:[\s]*', '月日：', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*First Quarter', '月相：上弦月', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*Last Quarter', '月相：下弦月', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*New Moon', '月相：新月', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*Full Moon', '月相：满月', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*Waning Crescent', '月相：残月', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*Waning Gibbous', '月相：亏凸月', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*Waxing Crescent', '月相：娥眉月', svg_text)
+    svg_text = re.sub(r'Lunar phase[\s]*:[\s]*Waxing Gibbous', '月相：盈凸月', svg_text)
+    svg_text = re.sub(r'Perspective[\s]*:[\s]*Apparent Geocentric', '视角：视地心', svg_text)
     return svg_text
 
 
-def _adjust_house_numbers(svg_text):
-    """调整宫位数字位置，解决右上角7/8/9宫数字拥挤问题。
-    通过微调坐标让数字分布更均匀。
+def _localize_top_left(svg_text):
+    """左上角信息全部改成中文。
+    修改 kr:node='Top_Left_Text' 组内的固定英文标签。
     """
-    # 用正则匹配 tspan 元素，支持单引号和双引号
-    # 目标：7→(410,185)、8→(365,135)、9→(275,85)
-    for num, new_x, new_y in [("7", "410", "185"),
-                              ("8", "365", "135"),
-                              ("9", "275", "85")]:
-        svg_text = re.sub(
-            r"<tspan\s+x\s*=\s*['\"]([^'\"]+)['\"]\s+y\s*=\s*['\"]([^'\"]+)['\"]>\s*"
-            + re.escape(num) + r"\s*</tspan>",
-            lambda m: f"<tspan x='{new_x}' y='{new_y}'>{num}</tspan>",
-            svg_text)
+    replacements = {
+        'Location:': '位置：',
+        'Latitude:': '纬度：',
+        'Longitude:': '经度：',
+        'Day of Week:': '星期：',
+        'Monday': '星期一',
+        'Tuesday': '星期二',
+        'Wednesday': '星期三',
+        'Thursday': '星期四',
+        'Friday': '星期五',
+        'Saturday': '星期六',
+        'Sunday': '星期日',
+        'Elements:': '四元素：',
+        'Fire': '火',
+        'Earth': '土',
+        'Air': '风',
+        'Water': '水',
+        'Qualities:': '三性质：',
+        'Cardinal': '开创',
+        'Fixed': '固定',
+        'Mutable': '变动',
+    }
+    for pat, repl in replacements.items():
+        svg_text = svg_text.replace(pat, repl)
     return svg_text
+
+
+def _reposition_house_numbers(svg_text):
+    """调整宫位数字：缩小字体、强制黑色，微调拥挤位置。
+    保持 Kerykeion 原始坐标（避免 svglib 对 text-anchor 支持不佳导致数字消失）。
+    """
+    # 找到 Houses_Wheel 内的所有 HouseNumber 组
+    hw_match = re.search(r"<g\b[^>]*kr:node\s*=\s*['\"]Houses_Wheel['\"][^>]*>", svg_text)
+    if not hw_match:
+        return svg_text
+    hw_start = hw_match.end()
+    hw_end = _find_group_end(svg_text, hw_match.start())
+    if hw_end == -1:
+        return svg_text
+
+    hw_body = svg_text[hw_start:hw_end]
+
+    # 微调表：把拥挤的右上角 7/8/9 稍微挪开
+    tweaks = {
+        '7': ('424', '195'),   # 原 424,199 → 上移一点
+        '8': ('377', '112'),   # 原 377,112 → 基本不变
+        '9': ('280', '55'),    # 原 280,56 → 上移一点
+    }
+
+    def tweak_hn(m):
+        block = m.group(0)
+        # 提取数字
+        nm = re.search(r"<tspan[^>]*>(\d+)</tspan>", block)
+        if not nm:
+            return block
+        num = nm.group(1)
+        # 强制黑色 + 缩小字体到 10px
+        block = re.sub(r"fill:\s*[^;]+", "fill:black", block)
+        block = re.sub(r"font-size:\s*[\d.]+px", "font-size:10px", block)
+        block = re.sub(r"fill-opacity:\s*[\d.]+;?", "", block)
+        # 应用微调
+        if num in tweaks:
+            nx, ny = tweaks[num]
+            block = re.sub(r"x\s*=\s*['\"][^'\"]+['\"]", f"x='{nx}'", block, count=1)
+            block = re.sub(r"y\s*=\s*['\"][^'\"]+['\"]", f"y='{ny}'", block, count=1)
+        return block
+
+    new_hw_body = re.sub(
+        r"<g\b[^>]*kr:node\s*=\s*['\"]HouseNumber['\"][^>]*>.*?</g>",
+        tweak_hn, hw_body, flags=re.S)
+
+    return svg_text[:hw_start] + new_hw_body + svg_text[hw_end:]
+
+
+def _shrink_zodiac(svg_text):
+    """缩放 Zodiac 组内的所有星座符号 <use>，并将符号中心对齐到各星座扇区中心。
+    svg2rlg 不支持 <use width/height>，改用在每个 <use> 外包裹
+    <g transform="translate(x,y) scale(0.4)"> 并重置 <use> 坐标为 0,0。
+    """
+    m = re.search(
+        r"<g[^>]*kr:node\s*=\s*['\"]Zodiac['\"][^>]*>",
+        svg_text)
+    if not m:
+        return svg_text
+    start = m.start()
+    end = _find_group_end(svg_text, start)
+    if end == -1:
+        return svg_text
+
+    body = svg_text[m.end():end]
+
+    def wrap_use(u):
+        tag = u.group(0)
+        xm = re.search(r"x\s*=\s*['\"]([^'\"]+)['\"]", tag)
+        ym = re.search(r"y\s*=\s*['\"]([^'\"]+)['\"]", tag)
+        hm = re.search(r"(xlink:)?href\s*=\s*['\"]([^'\"]+)['\"]", tag)
+        if xm and ym and hm:
+            x, y, href = xm.group(1), ym.group(1), hm.group(2)
+            # scale(0.4) 后符号中心偏移：先 translate 到中心，再 scale，再移回原位
+            # 符号原始大小约 32x32，中心在 (16,16)
+            # translate(x,y) → 把符号左上角放到 (x,y)
+            # 要居中：translate(x-6.4, y-6.4) scale(0.4) （因为 16*0.4=6.4）
+            cx_off = 6.4
+            return f"<g transform='translate({float(x)-cx_off},{float(y)-cx_off}) scale(0.4)'><use xlink:href='{href}' /></g>"
+        return tag
+
+    new_body = re.sub(r"<use\b[^>]*?\s*/>", wrap_use, body)
+    open_tag_end = svg_text.find('>', start) + 1
+    return (svg_text[:open_tag_end]
+            + new_body
+            + svg_text[end:end + 4]
+            + svg_text[end + 4:])
 
 
 def svg_to_png(svg_text, png_path, dpi=330):
@@ -180,13 +290,16 @@ def svg_to_png(svg_text, png_path, dpi=330):
     # 4) 星座符号缩小（仅 Zodiac 组内）
     svg_text = _shrink_zodiac(svg_text)
 
-    # 5) 底部文本英文化
+    # 5) 底部文本：保留 Regiomontanus 英文，其余改中文
     svg_text = _localize_bottom_text(svg_text)
 
-    # 6) 调整宫位数字位置
-    svg_text = _adjust_house_numbers(svg_text)
+    # 6) 左上角改中文
+    svg_text = _localize_top_left(svg_text)
 
-    # 7) 字体注入：所有 text 用 SimHei（含中文+拉丁；符号为矢量 path 不依赖字体）
+    # 7) 重新计算所有宫位数字位置
+    svg_text = _reposition_house_numbers(svg_text)
+
+    # 8) 字体注入：所有 text 用 SimHei（含中文+拉丁；符号为矢量 path 不依赖字体）
     svg_text = re.sub(
         r"(<text\b)([^>]*)",
         lambda m: (m.group(1) + " font-family='SimHei'" + m.group(2))
