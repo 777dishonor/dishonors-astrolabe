@@ -169,8 +169,22 @@ def cast(year, month, day, hour, minute, tz, lat, lon, hsys=b'R', mode_label='�
     cusps, angles = swe.houses(jd, lat, lon, hsys)
     asc, mc = angles[0], angles[1]
 
-    L = []
     hs_label = "Regiomontanus" if hsys == b'R' else "Placidus"
+
+    # 行星数据（同时用于文本输出和 JSON）
+    planet_data = []
+    planet_json = {}
+    for pid, name in PLANETS:
+        xx, _ = swe.calc_ut(jd, pid)
+        lon_p = xx[0]
+        speed = xx[3]  # 日行速度，负值=逆行
+        planet_data.append((pid, name, lon_p, speed))
+        # AstroChart 格式：行星名 → [黄经度数, 速度(可选)]
+        planet_json[name] = [round(lon_p, 4)]
+        if speed < 0:
+            planet_json[name].append(round(speed, 4))
+
+    L = []
     L.append("=== %s星盘 (%s 宫位制) ===" % (mode_label, hs_label))
     L.append("时间(本地): %04d-%02d-%02d %02d:%02d (TZ=%+g)" % (year, month, day, hour, minute, tz))
     L.append("地点: 纬度 %.4f, 经度 %.4f" % (lat, lon))
@@ -192,28 +206,44 @@ def cast(year, month, day, hour, minute, tz, lat, lon, hsys=b'R', mode_label='�
 
     # 2) 行星：黄经 + 落宫 + 尊贵状态
     L.append("--- 🌟 行星（黄经 / 落宫 / 尊贵） ---")
-    planet_data = []
-    for pid, name in PLANETS:
-        xx, _ = swe.calc_ut(jd, pid)
-        lon_p = xx[0]
+    for pid, name, lon_p, speed in planet_data:
         s, d, m = lon_to_sign_dms(lon_p)
         h = house_of(lon_p, list(cusps))
         dign = essential_dignity(pid, lon_p)
+        retro = " (逆行)" if speed < 0 else ""
         is_classical = "" if pid in CLASSICAL else "（非七曜）"
-        L.append("  %-4s  %s %d°%d'  落第%d宫  [%s] %s" % (name, s, d, m, h, dign, is_classical))
-        planet_data.append((pid, name, lon_p))
+        L.append("  %-4s  %s %d°%d'  落第%d宫  [%s] %s%s" % (name, s, d, m, h, dign, is_classical, retro))
     L.append("")
 
     # 3) 相位（仅七曜之间）
     L.append("--- 🔗 七曜相位 ---")
-    aspect_lines = compute_aspects(planet_data)
+    # 重建兼容 compute_aspects 的格式
+    planet_lons = [(pid, name, lon) for pid, name, lon, _ in planet_data]
+    aspect_lines = compute_aspects(planet_lons)
     if aspect_lines:
         for al in aspect_lines:
             L.append(al)
     else:
         L.append("  （无相位）")
     L.append("")
-    return "\n".join(L)
+
+    result = "\n".join(L)
+    result += "\n--- JSON ---\n"
+    import json
+    j = {
+        "planets": planet_json,
+        "cusps": [round(c, 4) for c in cusps],
+        "asc": round(asc, 4),
+        "mc": round(mc, 4),
+        "datetime": "%04d-%02d-%02d %02d:%02d" % (year, month, day, hour, minute),
+        "tz": tz,
+        "lat": lat,
+        "lon": lon,
+        "house_system": hs_label,
+        "mode": mode_label,
+    }
+    result += json.dumps(j, ensure_ascii=False)
+    return result
 
 
 def main():
@@ -224,6 +254,7 @@ def main():
     ap.add_argument("--lat", type=float, help="纬度(北纬正)")
     ap.add_argument("--lon", type=float, help="经度(东经正)")
     ap.add_argument("--out", help="输出文件(可选)")
+    ap.add_argument("--json-only", action="store_true", help="仅输出 JSON 部分")
     ap.add_argument("--mode", default="horary", choices=["horary", "natal"],
                     help="模式: horary(卜卦/Regiomontanus) 或 natal(本命/Placidus)")
     args = ap.parse_args()
@@ -246,7 +277,13 @@ def main():
     y, mo, d = map(int, ymd.split("-"))
     h, mi = map(int, hm.split(":"))
     res = cast(y, mo, d, h, mi, args.tz, lat, lon, hsys=hsys, mode_label=mode_label)
-    print(res)
+    if args.json_only:
+        # 只输出尾部的 JSON 块
+        parts = res.split("\n--- JSON ---\n")
+        if len(parts) == 2:
+            print(parts[1])
+    else:
+        print(res)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             f.write(res + "\n")
