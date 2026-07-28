@@ -70,8 +70,8 @@ STYLE_SUBTITLE = _cn_style("CNSubtitle", fontSize=10, textColor=COLOR_MUTED,
 STYLE_H2 = _cn_style("CNH2", fontSize=14, textColor=COLOR_PRIMARY,
                       spaceBefore=8*mm, spaceAfter=4*mm, leading=20)
 STYLE_BODY = _cn_style("CNBody", fontSize=9.5, textColor=COLOR_TEXT,
-                        alignment=TA_LEFT, spaceAfter=1.2*mm, leading=13,
-                        firstLineIndent=0)
+                        alignment=TA_LEFT, spaceAfter=0.8*mm, leading=11,
+                        firstLineIndent=0, wordWrap='CJK')
 STYLE_BODY_BOLD = _cn_style("CNBodyBold", fontSize=11, textColor=COLOR_PRIMARY,
                             alignment=TA_LEFT, spaceAfter=1.2*mm, leading=14,
                             firstLineIndent=0)
@@ -269,7 +269,7 @@ def _extract_verdict_body(text):
 
 
 def _clean_verdict(text):
-    """清理判读文字中的 Markdown 格式残渣和特殊字符"""
+    """清理判读文字中的 Markdown 格式残渣、特殊字符和 PDF 不友好标点"""
     import re
     # 1) 清除标题符号（但保留 ①②③ 编号段落前的结构）
     text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
@@ -279,12 +279,32 @@ def _clean_verdict(text):
     # 3) 清除分隔线
     text = re.sub(r'^---+\s*$', '', text, flags=re.MULTILINE)
     # 4) 清除特殊图标字符（天平、星星、对勾、方框等）
-    text = re.sub(r'[⚖️⭐✅🔮📋⚖□🔴🟢🟡]', '', text)
+    text = re.sub(r'[⚖️⭐✅🔮📋⚖□🔴🟢🟡⚠️❌❎❗❓➔➜➡️➡]', '', text)
     # 5) 清除 HTML 注释
     text = re.sub(r'<!--.*?-->', '', text, flags=re.DOTALL)
-    # 6) 清除多余空行
+    # 6) 将 PDF 渲染困难的标点替换为普通可断字符
+    #    ReportLab 不会在某些全角引号、破折号处断行，导致段落右侧大量留白
+    text = text.replace('——', '——')   # 已可接受，保留
+    text = text.replace('「', '“').replace('」', '”')
+    text = text.replace('『', '“').replace('』', '”')
+    text = text.replace('（', '(').replace('）', ')')
+    text = text.replace('【', '[').replace('】', ']')
+    text = text.replace('·', '-')
+    text = text.replace('°', '度')
+    text = text.replace('′', "'")
+    text = text.replace('″', '"')
+    text = text.replace('☉', '太阳').replace('☽', '月亮').replace('☿', '水星')
+    text = text.replace('♀', '金星').replace('♂', '火星').replace('♃', '木星')
+    text = text.replace('♄', '土星').replace('☊', '北交点').replace('☋', '南交点')
+    text = text.replace('⚹', '六合').replace('☌', '合').replace('☍', '冲')
+    text = text.replace('△', '拱').replace('□', '刑')
+    # 7) 在长连续文本中插入零宽空格，帮助 ReportLab 断行
+    #    对连续 12 个以上非空格字符后面插入零宽空格（仅 ASCII/标点连续段）
+    zwsp = '\u200b'
+    text = re.sub(r'([^\u4e00-\u9fff\s]{12})([^\u4e00-\u9fff\s])', lambda m: m.group(1) + zwsp + m.group(2), text)
+    # 8) 清除多余空行
     text = re.sub(r'\n{3,}', '\n\n', text)
-    # 7) 清除行首/行尾空格
+    # 9) 清除行首/行尾空格
     text = re.sub(r'^[ \t]+|[ \t]+$', '', text, flags=re.MULTILINE)
     return text
 
@@ -412,11 +432,11 @@ def generate_pdf(chart_png, chart_data, verdict_text, question, out_path):
                 continue
             if text.startswith("|") and text.count("|") > 2:
                 continue  # 跳过表格行
-            # 如果当前段落是 ①②③ 或 一、二、三 开头，且前面有段落，加空行
+            # 如果当前段落是 ①②③ 或 一、二、三 开头，且前面有段落，加小空行
             if prev_para and (text.startswith('①') or text.startswith('②') or text.startswith('③') or
                               text.startswith('一、') or text.startswith('二、') or text.startswith('三、') or
                               text.startswith('四、') or text.startswith('五、')):
-                story.append(Spacer(1, 2.5*mm))
+                story.append(Spacer(1, 1.5*mm))
             # 给小标题和关键句加粗
             text = _apply_bold_to_key_phrases(text)
             story.append(Paragraph(text, STYLE_BODY))

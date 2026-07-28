@@ -78,13 +78,13 @@ body{{font-family:'Microsoft YaHei','SimHei',sans-serif;background:#fff;color:#3
 <div class="row"><span class="lbl">经度</span><span>{data['lon']:.4f}</span></div>
 <div class="row"><span class="lbl">ASC</span><span>{data['asc']:.2f}°</span></div>
 <div class="row"><span class="lbl">MC</span><span>{data['mc']:.2f}°</span></div>
-<h2>行星经度</h2>
+<h2>行星黄经</h2>
 """
     for cn, en in planet_map.items():
         if cn in data["planets"]:
             val = data["planets"][cn]
             degree = val[0]
-            retro = " ℞" if (len(val) > 1 and val[1] < 0) else ""
+            retro = " 逆" if (len(val) > 1 and val[1] < 0) else ""
             html += f'<div class="row"><span class="lbl">{cn}</span><span>{degree:.2f}°{retro}</span></div>\n'
 
     html += f"""</div>
